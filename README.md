@@ -199,3 +199,4 @@ python mission_dataset.py
 [x] **Mission 5**: Autograd (자동 미분) & 손실 최적화 원리 검증(`mission_autograd.py`)
 [x] **Mission 6**: Custom Dataset & DataLoader 구축 (`mission_dataset.py`)
 [x] **Mission 7**: `nn.Module` 기반 인공신경망(MLP) 모델 구현(`mission_model.py`)
+[ ] **Mission 8**: Loss Function & Optimizer (SGD/Adam)

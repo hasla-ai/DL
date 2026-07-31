@@ -11,20 +11,21 @@ print("=" * 50)
 # 목표:
 # 입력 차원 10 -> 은닉층 32 (ReLU 활성화 함수) -> 출력 차원 2 구조를 가지는 SimpleMLP 정의
 
-class SimpleMLP(nn.Module):
+class SimpleMLP(nn.Module): ## nn.Module:학습 가능한 파라미터(가중치)를 가진 특별한 객체로 인식.
     def __init__(self, input_dim=10, hidden_dim=32, output_dim=2):
         super(SimpleMLP, self).__init__()
         
-        # 선형 레이어(Linear Layer) 및 활성화 함수 정의
-        self.fc1 = nn.Linear(input_dim, hidden_dim)
-        self.relu = nn.ReLU()
+        # 선형 레이어(Linear Layer 또는 Full Connected(FC) 레이어) 및 활성화 함수 정의
+        self.fc1 = nn.Linear(input_dim, hidden_dim) # 10개 값(단서), 32개 추론. y = xW^T + b
+        self.relu = nn.ReLU() # 활성화 함수(Activation Function): 비선형성.
         self.fc2 = nn.Linear(hidden_dim, output_dim)
-
-    def forward(self, x):
+                              # 34개 추론, 최종 정답 2개(예시: 개일 확률, 고양이일 확률)
+    # data flow
+    def forward(self, x): 
         out = self.fc1(x)
         out = self.relu(out)
         out = self.fc2(out)
-        return out
+        return out # cf. 역전파 Backward(Mission 4, autograd)
 
 model = SimpleMLP(input_dim=10, hidden_dim=32, output_dim=2)
 
@@ -63,7 +64,7 @@ print(f"  • 출력 Shape : {output.shape} (Batch Size x Output Classes)")
 # 목표:
 # nn.Sequential을 활용하여 동일한 구조를 가볍게 선언해 봅니다.
 
-seq_model = nn.Sequential(
+seq_model = nn.Sequential( # ResNet의 Residual Block 내부 등에 사용됨.
     nn.Linear(10, 32),
     nn.ReLU(),
     nn.Linear(32, 2)
@@ -74,7 +75,7 @@ seq_output = seq_model(dummy_input)
 # [검증 7-3]
 assert seq_output.shape == (16, 2), f"Sequential 출력 Shape 불일치: {seq_output.shape}"
 assert seq_model[0].weight.shape == (32, 10), f"fc1 가중치 Matrix Shape 불일치: {seq_model[0].weight.shape}"
-
+        # fc1 레이어 가중치 & 전치Transpose 연산(Batch, 10) X (10, 32) = (Batch, 32)
 print("\n✅ MISSION 7-3 PASSED!")
 print(f"  • Sequential 모델 출력 Shape: {seq_output.shape}")
 print(f"  • 첫 번째 선형 레이어 가중치 Shape: {seq_model[0].weight.shape} (Out Features x In Features)")
