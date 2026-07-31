@@ -104,7 +104,7 @@ Unsqueezed (m2_batch): 2차원 행렬을 하나의 '봉투(Batch)'에 담아 3�
 python mission_autograd.py
 ```
 
-```
+```bash
 ==================================================
 🚀 PyTorch 핸즈온 미션 5탄: Autograd (자동 미분) 시작
 ==================================================
@@ -129,20 +129,41 @@ python mission_autograd.py
 ==================================================
 ```
 
+아래 명령어로 미션 6 검증 코드를 실행합니다.
+
+
+```bash
+python mission_dataset.py
+```
+
+```bash
+==================================================
+🚀 PyTorch 핸즈온 미션 6탄: Custom Dataset & DataLoader 시작
+==================================================
+ 
+ ✅ MISSION 6-1 PASSED!
+  • 데이터셋 전체 샘플 수: 100
+  • 첫 번째 샘플 X Shape : torch.Size([10]), y 값: 1
+ 
+ ✅ MISSION 6-2 PASSED!
+  • 배치 X Shape: torch.Size([16, 10]) (Batch Size x Feature Size)
+  • 배치 y Shape: torch.Size([16])
+ 
+ ✅ MISSION 6-3 PASSED!
+  • 1 Epoch 동안 생성된 총 배치 수: 7
+  • 마지막 자투리 배치의 크기      : 4
+
+==================================================
+🎉 ALL MISSIONS IN MISSION 6 PASSED! Dataset & DataLoader 검증 완료!
+ ==================================================
+```
 
 ## 🗺️ 미션 로드맵(Roadmap)과 체크 리스트
 
-[x] **Mission 1**: PyTorch 텐서 기본 연산, 차원 변경, Device 및 NumPy 변환
-(`mission_pytorch_basics.py`)
-
-[x] **Mission 2**: Autograd(자동 미분) 및 손실(Loss) 최적화 루프
-(`mission_autograd.py`)
-
-[x] **Mission 3**: Custom Dataset과 DataLoader 구축
-(`mission_dataloader.py`)
-
-[x] **Mission 4**: Simple Neural Network 전체 학습 및 평가
-(`mission_nn_training.py`)
-
-[ ] **Mission 5**: Autograd (자동 미분) & 손실 최적화 원리 검증
- (`mission_autograd.py`)
+[x] **Mission 1**: PyTorch 텐서 기본 연산, 차원 변경, Device 및 NumPy 변환(`mission_pytorch_basics.py`)
+[x] **Mission 2**: Autograd(자동 미분) 및 손실(Loss) 최적화 루프(`mission_autograd.py`)
+[x] **Mission 3**: Custom Dataset과 DataLoader 구축(`mission_dataloader.py`)
+[x] **Mission 4**: Simple Neural Network 전체 학습 및 평가(`mission_nn_training.py`)
+[x] **Mission 5**: Autograd (자동 미분) & 손실 최적화 원리 검증(`mission_autograd.py`)
+[ ] **Mission 6**: Custom Dataset & DataLoader 구축 (`mission_dataset.py`)
+[ ] **Mission 7**: `nn.Module` 기반 인공신경망(MLP) 모델 구현
