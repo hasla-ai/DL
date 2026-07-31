@@ -190,6 +190,35 @@ python mission_dataset.py
  🎉 ALL MISSIONS IN MISSION 7 PASSED! nn.Module 신경망 구축 검증 완료!
  ==================================================
 
+아래 명령어로 미션 6 검증 코드를 실행합니다.
+
+
+```bash
+python mission_loss_optimizer.py
+```
+
+```bash
+==================================================
+ 🚀 PyTorch 핸즈온 미션 8탄: Loss Function & Optimizer 시작
+ ==================================================
+ 
+ ✅ MISSION 8-1 PASSED!
+   • MSE Loss 계산 결과          : 2.1250
+   • CrossEntropy Loss 계산 결과 : 0.1250
+ 
+ ✅ MISSION 8-2 PASSED!
+   • 계산된 Loss 값                   : 0.7357
+   • 가중치(Weight) 변경 여부 검증 완료 : True
+ 
+ ✅ MISSION 8-3 PASSED!
+   • 초기 Learning Rate : 0.1
+   • 감쇄 후 Learning Rate: 0.05
+ 
+ ==================================================
+ 🎉 ALL MISSIONS IN MISSION 8 PASSED! Loss & Optimizer 검증 완료!
+ ==================================================
+```
+
 ## 🗺️ 미션 로드맵(Roadmap)과 체크 리스트
 
 [x] **Mission 1**: PyTorch 텐서 기본 연산, 차원 변경, Device 및 NumPy 변환(`mission_pytorch_basics.py`)
@@ -199,4 +228,5 @@ python mission_dataset.py
 [x] **Mission 5**: Autograd (자동 미분) & 손실 최적화 원리 검증(`mission_autograd.py`)
 [x] **Mission 6**: Custom Dataset & DataLoader 구축 (`mission_dataset.py`)
 [x] **Mission 7**: `nn.Module` 기반 인공신경망(MLP) 모델 구현(`mission_model.py`)
-[ ] **Mission 8**: Loss Function & Optimizer (SGD/Adam)
+[x] **Mission 8**: Loss Function & Optimizer (SGD/Adam)(`mission_loss_optimizer.py`)
+[ ] **Mission 9**: 파이토치 학습 & 평가 전체 루프(Full Pipeline) 구축
