@@ -1,5 +1,6 @@
 # 1. Official PyTorch 이미지 사용 (PyTorch + Python + 기본 라이브러리 포함)
 FROM pytorch/pytorch:latest
+FROM jupyter/scipy-notebook:latest
 
 # 2. 컨테이너 내부 작업 디렉토리 설정
 WORKDIR /app

@@ -12,7 +12,7 @@ print("=" * 50)
 # 2. 수식 y = 2 * x^2 + 5 * x + 1 에 해당하는 계산 그래프 `y`를 작성하세요.
 
 x = torch.tensor(3.0, requires_grad=True)
-y = 2 * (x ** 2) + 5 * x + 1
+y = 2 * (x ** 2) + 5 * x + 1 # Computational Graph
 
 # [검증 5-1]
 # 수식 y = 2x^2 + 5x + 1 에 x=3을 대입하면 y = 2(9) + 5(3) + 1 = 34.0
@@ -27,11 +27,11 @@ print(f"  • y = 2x^2 + 5x + 1 계산 결과: {y.item()}")
 # ==========================================
 # [MISSION 5-2] 역전파(backward)와 미분값(grad) 검증
 # ==========================================
-# 목표:
+# 목표: 
 # 1. `y.backward()`를 호출하여 dy/dx 미분값을 계산하세요.
 # 2. x = 3 일 때 dy/dx = 4x + 5 = 17.0 이 맞는지 `x.grad`로 검증하세요.
 
-y.backward()  # 역전파 수행
+y.backward()  # 역전파 Backpropagation 수행
 
 # [검증 5-2]
 # dy/dx = 4x + 5 -> x=3 일 때 dy/dx = 17.0
@@ -48,7 +48,7 @@ print(f"  • 수학적 해석해 (4x + 5): {expected_grad}")
 # [MISSION 5-3] Gradient 누적 방지 (zero_grad의 필요성)
 # ==========================================
 # 목표:
-# PyTorch는 .backward()를 호출할 때마다 기본적으로 grad를 '누적(더함)'합니다.
+# PyTorch는 .backward()를 호출할 때마다 기본적으로 grad를 '누적(더함)'합니다(기울기를 더한다(Accumulate)).
 # 1. 동일한 연산을 한 번 더 실행하고 backward()를 호출하여 grad가 누적되는 현상을 확인하세요.
 # 2. 그 후 `x.grad.zero_()`를 사용하여 경사값을 0으로 리셋하세요.
 
