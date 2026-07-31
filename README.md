@@ -158,6 +158,38 @@ python mission_dataset.py
  ==================================================
 ```
 
+아래 명령어로 미션 6 검증 코드를 실행합니다.
+
+
+```bash
+python mission_dataset.py
+```
+
+```bash
+==================================================
+🚀 PyTorch 핸즈온 미션 7탄: nn.Module 기반 인공신경망(MLP) 시작
+==================================================
+
+✅ MISSION 7-1 PASSED!
+ • 생성된 신경망 모델 레이어 구조:
+ SimpleMLP(
+ (fc1): Linear(in_features=10, out_features=32, bias=True)
+ (relu): ReLU()
+ (fc2): Linear(in_features=32, out_features=2, bias=True)
+)
+
+ ✅ MISSION 7-2 PASSED!
+   • 입력 Shape : torch.Size([16, 10])
+   • 출력 Shape : torch.Size([16, 2]) (Batch Size x Output Classes)
+ 
+ ✅ MISSION 7-3 PASSED!
+   • Sequential 모델 출력 Shape: torch.Size([16, 2])
+   • 첫 번째 선형 레이어 가중치 Shape: torch.Size([32, 10]) (Out Features x In Features)
+ 
+ ==================================================
+ 🎉 ALL MISSIONS IN MISSION 7 PASSED! nn.Module 신경망 구축 검증 완료!
+ ==================================================
+
 ## 🗺️ 미션 로드맵(Roadmap)과 체크 리스트
 
 [x] **Mission 1**: PyTorch 텐서 기본 연산, 차원 변경, Device 및 NumPy 변환(`mission_pytorch_basics.py`)
@@ -165,5 +197,5 @@ python mission_dataset.py
 [x] **Mission 3**: Custom Dataset과 DataLoader 구축(`mission_dataloader.py`)
 [x] **Mission 4**: Simple Neural Network 전체 학습 및 평가(`mission_nn_training.py`)
 [x] **Mission 5**: Autograd (자동 미분) & 손실 최적화 원리 검증(`mission_autograd.py`)
-[ ] **Mission 6**: Custom Dataset & DataLoader 구축 (`mission_dataset.py`)
-[ ] **Mission 7**: `nn.Module` 기반 인공신경망(MLP) 모델 구현
+[x] **Mission 6**: Custom Dataset & DataLoader 구축 (`mission_dataset.py`)
+[x] **Mission 7**: `nn.Module` 기반 인공신경망(MLP) 모델 구현(`mission_model.py`)
