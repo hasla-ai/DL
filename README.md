@@ -47,6 +47,77 @@ Python 및 라이브러리 설치 없이 Docker만으로 미션을 검증할 수
 ```bash
 # Docker 컨테이너 빌드 및 미션 실행
 docker compose up --build
+```
+
+## 🧪 미션 실행 및 검증 (Run & Verification)
+
+아래 명령어로 미션 1 검증 코드를 실행합니다.
 
 
+```bash
+python mission_pytorch_basics.py
+```
 
+🖥️ 기대 실행 결과 (Output)
+
+```bash
+==================================================
+🚀 PyTorch 텐서 핸즈온 미션 1탄 시작
+==================================================
+
+✅ MISSION 1 PASSED!
+  • m1 값: tensor([ 1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12])
+  • m1_ones 합계: 12.0
+
+
+✅ MISSION 2 PASSED!
+  • 원본 Shape (1D): torch.Size([12])
+  • 2D 변환 Shape  : torch.Size([3, 4])
+  • 배치 차원 추가  : torch.Size([1, 3, 4])
+  • Squeeze 적용   : torch.Size([3, 4])
+
+![Assert_Dimension_Manipulation](./images/Assert_Dimension_Manipulation.png)
+
+  위의 차트는 미션 2에서 수행하신 차원 변화의 흐름을 시각화한 것입니다.
+Original (m1): 12개의 원소가 일렬로 늘어선 1차원 벡터입니다.
+Reshaped (m2_2d): 데이터를 3행 4열의 2차원 행렬 구조로 재배치했습니다.
+Unsqueezed (m2_batch): 2차원 행렬을 하나의 '봉투(Batch)'에 담아 3차원으로 확장했습니다. 겉보기엔 같아 보일 수 있지만, 컴퓨터는 이제 이를 "1개짜리 데이터 묶음"으로 인식합니다.
+
+✅ MISSION 3 PASSED!
+  • 감지 및 할당된 장치: cuda (또는 cpu)
+  • 텐서 디바이스 위치  : cuda:0 (또는 cpu)
+  • NumPy 변환 완료 타입: <class 'numpy.ndarray'>
+
+✅ MISSION 4 PASSED!
+  • 추출된 2번째 행: [5, 6, 7, 8]
+  • 추출된 3번째 열: [3, 7, 11]
+
+==================================================
+🎉 ALL MISSIONS PASSED! 모든 텐서 기본 연산 검증 완료!
+==================================================
+```
+
+### 4. Docker로 즉시 실행하기 (선택 사항)
+
+별도의 Python 가상환경 세팅 없이 Docker 하나로 실행 및 검증합니다.
+
+```bash
+docker compose up --build
+```
+
+🗺️ 미션 로드맵(Roadmap)과 체크 리스트
+
+[x] **Mission 1**: PyTorch 텐서 기본 연산, 차원 변경, Device 및 NumPy 변환
+(`mission_pytorch_basics.py`)
+
+[x] **Mission 2**: Autograd(자동 미분) 및 손실(Loss) 최적화 루프
+(`mission_autograd.py`)
+
+[x] **Mission 3**: Custom Dataset과 DataLoader 구축
+(`mission_dataloader.py`)
+
+[x] **Mission 4**: Simple Neural Network 전체 학습 및 평가
+(`mission_nn_training.py`)
+
+[ ] **Mission 5**: Autograd (자동 미분) & 손실 최적화 원리 검증
+ (`mission_autograd.py`)
