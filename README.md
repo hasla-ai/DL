@@ -25,8 +25,8 @@
 ### 1. Repository 클론 및 가상환경 설정
 
 ```bash
-git clone [https://github.com/YOUR_GITHUB_USERNAME/pytorch-learning-missions.git](https://github.com/YOUR_GITHUB_USERNAME/pytorch-learning-missions.git)
-cd pytorch-learning-missions
+git clone https://github.com/hasla-ai/PyTorch_basic_2026.git
+cd PyTorch_basic_2026
 
 # 가상환경 생성 및 활성화
 python -m venv venv
