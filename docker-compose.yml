@@ -1,0 +1,14 @@
+services:
+  pytorch-mission:
+    build: .
+    container_name: pytorch_mission_app
+    volumes:
+      - .:/app  # 로컬 코드 수정이 컨테이너에 즉시 반영되도록 마운트
+    # GPU를 사용할 수 있는 환경일 경우 아래 deploy 주석 해제
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
