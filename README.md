@@ -42,7 +42,7 @@ pip install -r requirements.txt
 
 ### 3. Docker로 즉시 실행하기 (선택 사항)
 
-Python 및 라이브러리 설치 없이 Docker만으로 미션을 검증할 수 있습니다.
+Python 및 라이브러리 설치 등 별도의 가상환경 세팅 없이 Docker만으로 미션을 검증할 수 있습니다.
 
 ```bash
 # Docker 컨테이너 빌드 및 미션 실행
@@ -51,7 +51,7 @@ docker compose up --build
 
 ## 🧪 미션 실행 및 검증 (Run & Verification)
 
-아래 명령어로 미션 1 검증 코드를 실행합니다.
+아래 명령어로 미션 1-4 검증 코드를 실행합니다.
 
 
 ```bash
@@ -97,15 +97,40 @@ Unsqueezed (m2_batch): 2차원 행렬을 하나의 '봉투(Batch)'에 담아 3�
 ==================================================
 ```
 
-### 4. Docker로 즉시 실행하기 (선택 사항)
+아래 명령어로 미션 5 검증 코드를 실행합니다.
 
-별도의 Python 가상환경 세팅 없이 Docker 하나로 실행 및 검증합니다.
 
 ```bash
-docker compose up --build
+python mission_autograd.py
 ```
 
-🗺️ 미션 로드맵(Roadmap)과 체크 리스트
+```
+==================================================
+🚀 PyTorch 핸즈온 미션 5탄: Autograd (자동 미분) 시작
+==================================================
+
+✅ MISSION 5-1 PASSED!
+  • 입력 x: 3.0
+  • y = 2x^2 + 5x + 1 계산 결과: 34.0
+
+✅ MISSION 5-2 PASSED!
+  • PyTorch가 계산한 dy/dx (x.grad): 17.0
+  • 수학적 해석해 (4x + 5): 17.0
+
+✅ MISSION 5-3 PASSED!
+  • backward() 재호출 시 누적된 Gradient: 34.0
+  • x.grad.zero_() 후 리셋된 Gradient: 0.0
+
+✅ MISSION 5-4 PASSED!
+  • torch.no_grad() 블록 내 z.requires_grad: False
+
+==================================================
+🎉 ALL MISSIONS IN MISSION 5 PASSED! Autograd 검증 완료!
+==================================================
+```
+
+
+## 🗺️ 미션 로드맵(Roadmap)과 체크 리스트
 
 [x] **Mission 1**: PyTorch 텐서 기본 연산, 차원 변경, Device 및 NumPy 변환
 (`mission_pytorch_basics.py`)
