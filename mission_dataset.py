@@ -15,16 +15,15 @@ print("=" * 50)
 # 4. __getitem__: 주어진 인덱스(idx)에 해당하는 (X[idx], y[idx]) 튜플을 반환합니다.
 
 class SimpleDataset(Dataset):
-    def __init__(self, X, y):
+    def __init__(self, X, y): # Lazy Loading: 데이터가 매우 크다면 이름만 저장하고 파일을 읽도록 설계 가능함.
         self.X = X
         self.y = y
 
     def __len__(self):
         return len(self.X)
 
-    def __getitem__(self, idx):
-        return self.X[idx], self.y[idx]
-
+    def __getitem__(self, idx): # 데이터 실시간 변형(Augmentation), 이미지 파일의 텐서화 등이 가능함.
+        return self.X[idx], self.y[idx] # 보통 데이터 회전, 밝기 조절하는 transform 인자 추가함.
 
 # 테스트용 더미 데이터 생성 (100개의 샘플, 각 샘플은 10개 특징)
 dummy_X = torch.randn(100, 10)
@@ -50,12 +49,13 @@ print(f"  • 첫 번째 샘플 X Shape : {sample_x.shape}, y 값: {sample_y.ite
 # 1. batch_size=16, shuffle=True로 설정된 DataLoader를 생성하세요.
 # 2. 첫 번째 배치(Batch)를 꺼내어 배치 차원이 올바르게 생성되었는지 검증하세요.
 
-dataloader = DataLoader(dataset, batch_size=16, shuffle=True)
+dataloader = DataLoader(dataset, batch_size=16, shuffle=True) # Batching-Shuffling-Paralle Computing
+# num_workers: number of DataLoaders as Worker.
 
 # 첫 번째 배치 가져오기
 first_batch_x, first_batch_y = next(iter(dataloader))
 
-# [검증 6-2]
+# [검증 6-2] Dataset[0]: (10,) 1차원 벡터가 출력 (16,10) 2차원 행렬(뭉치)로 배치 차원화하는 것이 PyTorch 데이터 처리의 핵심.
 # 전체 100개 데이터 중 batch_size=16이면 첫 배치의 크기는 (16, 10), (16,) 이어야함
 assert first_batch_x.shape == (16, 10), f"배치 X Shape 불일치: {first_batch_x.shape}"
 assert first_batch_y.shape == (16,), f"배치 y Shape 불일치: {first_batch_y.shape}"
@@ -70,8 +70,8 @@ print(f"  • 배치 y Shape: {first_batch_y.shape}")
 # ==========================================
 # 목표:
 # 100개의 데이터셋을 batch_size=16으로 순회하면:
-# 16 * 6 = 96개 + 마지막 자투리 4개 = 총 7개의 배치가 순회되어야 함을 검증하세요.
-
+# 16 * 6 = 96개 + 마지막 자투리(Epoch) 4개 = 총 7개의 배치가 순회되어야 함을 검증하세요.
+# 실무적으로 drop_last=True를 하기도.
 total_batches = 0
 last_batch_size = 0
 
