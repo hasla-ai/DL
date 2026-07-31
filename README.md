@@ -158,7 +158,7 @@ python mission_dataset.py
  ==================================================
 ```
 
-아래 명령어로 미션 6 검증 코드를 실행합니다.
+아래 명령어로 미션 7 검증 코드를 실행합니다.
 
 
 ```bash
@@ -189,8 +189,9 @@ python mission_dataset.py
  ==================================================
  🎉 ALL MISSIONS IN MISSION 7 PASSED! nn.Module 신경망 구축 검증 완료!
  ==================================================
+```
 
-아래 명령어로 미션 6 검증 코드를 실행합니다.
+아래 명령어로 미션 8 검증 코드를 실행합니다.
 
 
 ```bash
@@ -218,6 +219,40 @@ python mission_loss_optimizer.py
  🎉 ALL MISSIONS IN MISSION 8 PASSED! Loss & Optimizer 검증 완료!
  ==================================================
 ```
+아래 명령어로 미션 9(마지막 미션) 검증 코드를 실행합니다.
+
+```bash
+python mission_full_pipeline.py
+```
+
+```bash
+ ==================================================
+ 🚀 PyTorch 핸즈온 미션 9탄: 전체 학습/평가 루프 (Full Pipeline) 시작
+ ==================================================
+   • Epoch [1/5] Train Loss: 0.6220
+   • Epoch [2/5] Train Loss: 0.2377
+   • Epoch [3/5] Train Loss: 0.0887
+   • Epoch [4/5] Train Loss: 0.0498
+   • Epoch [5/5] Train Loss: 0.0283
+ 
+ ✅ MISSION 9-1 PASSED!
+   • 초기 Epoch Loss : 0.6220
+   • 최종 Epoch Loss : 0.0283 (손실 감소 성공!)
+ 
+ ✅ MISSION 9-2 PASSED!
+   • Test Dataset 평가 결과: 50/50 정답 맞춤
+   • Accuracy (정확도)      : 100.00%
+ 
+ ✅ MISSION 9-3 PASSED!
+   • original model output : [[ 4.4025736 -4.0186515]]
+   • loaded model output   : [[ 4.4025736 -4.0186515]]
+   • 모델 체크포인트 Save/Load 일치성 검증 완료!
+ 
+ ==================================================
+ 🎉 ALL MISSIONS IN MISSION 9 PASSED!
+ 🏆 PyTorch 핸즈온 프로젝트의 모든 미션을 완벽히 통과하셨습니다!
+ ==================================================
+```
 
 ## 🗺️ 미션 로드맵(Roadmap)과 체크 리스트
 
@@ -229,4 +264,4 @@ python mission_loss_optimizer.py
 [x] **Mission 6**: Custom Dataset & DataLoader 구축 (`mission_dataset.py`)
 [x] **Mission 7**: `nn.Module` 기반 인공신경망(MLP) 모델 구현(`mission_model.py`)
 [x] **Mission 8**: Loss Function & Optimizer (SGD/Adam)(`mission_loss_optimizer.py`)
-[ ] **Mission 9**: 파이토치 학습 & 평가 전체 루프(Full Pipeline) 구축
+[x] **Mission 9**: 파이토치 학습 & 평가 전체 루프(Full Pipeline) 구축(`mission_full_pipeline.py`)
