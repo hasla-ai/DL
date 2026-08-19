@@ -1,5 +1,5 @@
 
-# 적용판단 도우미: 회의 반복 주제 체크리스트 만들기
+# 2-1 적용판단 도우미: 회의 반복 주제 체크리스트 만들기
 
 # 검증 가능 정답 코드
 # 샘플 수·규칙 유지비·문맥 의존도를 각각 검사해 딥러닝 적용 여부를 한 조건으로 단정하지 않습니다.
@@ -16,3 +16,32 @@ def recommend_start(raw_unstructured, labeled_count, stable_rule):
 
 cases = [(False, 400, True), (True, 28000, False), (True, 120, False)]
 print([recommend_start(*case) for case in cases])
+
+# 3-1 불완전한 검증 근거로 승인과 재측정 구분
+
+candidates = {
+    "A": {"accuracy": 0.884, "latency_ms": 3, "latency_runs": 3},
+    "B": {"accuracy": 0.921, "latency_ms": 10, "latency_runs": 1},
+    "C": {"accuracy": 0.908, "latency_ms": 13, "latency_runs": 3},
+}
+approved, remeasure, rejected = [], [], {}
+for name, result in candidates.items():
+    failed = []
+    if result["accuracy"] < 0.90:
+        failed.append("accuracy")
+    if result["latency_ms"] > 12:
+        failed.append("latency")
+    if failed:
+        rejected[name] = failed
+    elif result["latency_runs"] < 3:
+        remeasure.append(name)
+    else:
+        approved.append(name)
+decision = max(approved, key=lambda n: candidates[n]["accuracy"]) if approved else "보류"
+print("approved:", approved)
+print("remeasure:", remeasure)
+print("rejected:", rejected)
+print("decision:", decision)
+
+
+## 1-3강
