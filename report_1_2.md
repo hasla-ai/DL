@@ -210,6 +210,7 @@ A는 속도는 충분하지만 정확도 미달이고 C는 정확도를 통과�
 
 검증 2,000건도 실제 유입 문서의 표현과 비율을 완전히 대표하지 않을 수 있습니다. B의 반복 측정을 통과해도 결과는 제한된 1차 승인 자료이며, 희귀 안전 사례와 실제 부하 분포를 포함한 후속 검증이 남습니다.
 
+
 ## [1장 3강 심화] - 학습 파이프라인 순서 이해 실습 (1) ##
  
 ## 실습 배경
@@ -243,7 +244,7 @@ A는 속도는 충분하지만 정확도 미달이고 C는 정확도를 통과�
 02:10 valid_loss=0.412
 02:10 optimizer.step called
 02:10 validation end
-```
+
 
 ## 문제 1. 뒤섞인 실행 기록 진단하기
 
@@ -265,4 +266,58 @@ observed = ["forward", "loss", "step", "zero_grad", "backward"]
   recommended: zero_grad -> forward -> loss -> backward -> step
 ```
 
+PyTorch 학습 루프(Training Loop)에서 반드시 지켜야 하는 '호출 순서 의존성'이 제대로 지켜졌는지 검사하는 코드입니다.
+주어진 코드의 observed는 잘못된 순서로 작성되어 있어서, 이 코드를 실행하면 순서 위반 에러 메시지를 출력합니다.
 
+- 절대로 어기면 안 되는 의존 관계 (dependencies) PyTorch 연산의 논리적 순서 규칙입니다.
+("forward", "loss") : forward 계산이 먼저 나와야 loss를 계산할 수 있음 (위치 index: 0 < 1 ⭕️)
+("loss", "backward") : loss 계산이 끝나야 역전파(backward)를 할 수 있음 (위치 index: 1 < 4 ⭕️)
+("zero_grad", "backward") : 기존 기울기를 초기화(zero_grad)한 뒤 역전파를 해야 함 (위치 index: 3 < 4 ⭕️)
+("backward", "step") : 역전파(backward)로 기울기를 계산한 뒤 가중치를 업데이트(step)해야 함 (위치 index: 4 < 2 ❌ 위반!)
+
+## 해설
+
+  위치 검사는 단지 문자열 정렬 문제가 아니라 산출물 의존성을 확인합니다. 관찰 목록의 치명적 위반은 `step`이 새 gradient를 만드는 `backward`보다 먼저 실행된 것입니다. `zero_grad`는 이전 gradient를 새 `backward` 전에 비워야 하지만, `forward`와 `loss`는 gradient buffer를 소비하지 않으므로 그보다 먼저 실행돼도 기술적으로 유효합니다. 다만 한 step의 경계를 읽기 쉽도록 보통 시작 부분에 두는 순서를 권장합니다.
+
+**리뷰에서 먼저 볼 의존성:** forward가 출력을 만들고 loss가 그 출력을 소비하며, backward가 gradient를 만든 뒤 step이 이를 소비합니다. zero_grad의 필수 조건은 forward 이전이 아니라 새 backward 이전입니다. 이 네 edge를 따로 적으면 관례적인 배치와 실제 오류 조건을 구분할 수 있습니다.
+
+**오답 원인:** 다섯 호출이 모두 한 번씩 등장한다는 사실만 확인하면 step이 gradient보다 먼저 실행되는 오류를 놓칩니다. 관찰 목록을 알파벳순으로 바꾸거나 단순히 정답 목록을 외워 쓰는 것도 산출물 의존성을 설명하지 못합니다.
+
+**누적 학습에서는:** gradient 누적을 의도하면 매 batch마다 zero_grad하지 않을 수 있습니다. 그 경우에도 누적 구간 시작 전에 비우고 마지막 backward 뒤에 한 번 step한다는 별도 계약이 필요합니다. 따라서 권장 한 줄 순서를 유일한 유효 순서로 일반화해서는 안 됩니다.
+
+
+## 문제 2. 한 batch 학습 코드를 직접 복구하기
+
+### 업무 요청
+
+문서 임베딩을 점수 하나로 바꾸는 작은 회귀 모델입니다. 한 batch에서 실제로 파라미터가 바뀌도록 코드를 완성하고, loss 전후가 아니라 weight 전후를 검증하세요.
+
+### 수행해야 할 작업
+
+1. seed를 고정하고 모델·loss·optimizer를 만든다.
+2. 학습 계약 순서대로 한 step을 실행한다.
+3. 업데이트 전후 weight를 복사해 비교한다.
+4. loss와 변경 여부를 출력한다.
+
+```bash
+print(f"Weight 업데이트 변화량: {weight_diff:.6f}")
+assert weight_diff > 0, "Weight가 업데이트되지 않았습니다!"
+print("✅ 한 batch 학습 후 Weight가 성공적으로 변경되었습니다.")
+```
+업데이트 전 Tensor는 detach().clone()으로 별도 보관해야 나중 값과 비교할 수 있습니다.
+
+
+```
+loss_is_scalar: True
+weight_changed: True
+```
+
+**해설**
+
+접근 순서는 단계 이름을 코드로 옮긴 뒤, 실제 계약이 지켜졌는지를 파라미터 복사본으로 확인하는 것입니다. `loss.item()`만 출력해도 코드는 돌아가지만 업데이트가 일어났다는 증거는 아닙니다. `before = model.weight`로만 저장하면 같은 파라미터 객체를 계속 바라보므로 전후 비교가 무너집니다. 이 예제는 한 batch의 흐름만 검증하며, loss가 장기적으로 감소하거나 일반화 성능이 좋아진다는 보장은 하지 않습니다.
+
+**접근 순서:** 모델과 optimizer를 만든 직후 update 전 weight를 분리 복사하고, 계약 순서대로 한 step을 실행합니다. 마지막에는 loss scalar 여부와 weight 변경을 별도로 검사해 계산 성공과 update 성공을 서로 다른 증거로 남깁니다.
+
+**오답 원인:** loss가 출력됐다는 사실만으로는 backward나 step이 호출됐는지 알 수 없습니다. 또한 before에 parameter 객체 자체를 저장하면 after와 같은 저장공간을 보게 되어 변경량 검사가 무의미해지므로 detach와 clone이 필요합니다.
+
+**적용 한계:** 한 번의 weight 변경은 코드 경로가 연결됐다는 뜻이지 좋은 방향으로 충분히 학습됐다는 보장은 아닙니다. 여러 step의 loss 흐름과 validation 결과는 후속 실험에서 확인해야 하며, 이 예제의 회귀 데이터 두 건을 운영 성능으로 일반화할 수 없습니다.
