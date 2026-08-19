@@ -44,4 +44,27 @@ print("rejected:", rejected)
 print("decision:", decision)
 
 
-## 1-3강
+## 1-3강 학습 파이프라인 순서
+# 문제 1. 뒤섞인 실행 기록 진단하기
+
+observed = ["forward", "loss", "step", "zero_grad", "backward"]
+
+# 전체 목록을 한 줄 순서로 강제하지 않고, 실제로 값이 필요한 의존 관계만 검사합니다.
+
+dependencies = [
+    ("forward", "loss"),
+    ("loss", "backward"),
+    ("zero_grad", "backward"),
+    ("backward", "step"),
+]
+
+position = {stage: observed.index(stage) for stage in observed}
+
+violations = [
+    f"{left} must precede {right}"
+    for left, right in dependencies
+    if position[left] > position[right]
+]
+
+print("first_violation:", violations[0])
+print("recommended:", "zero_grad -> forward -> loss -> backward -> step")

@@ -239,7 +239,6 @@ A는 속도는 충분하지만 정확도 미달이고 C는 정확도를 통과�
 
 ## 상황 자료
 
-```
 02:10 validation start
 02:10 valid_loss=0.412
 02:10 optimizer.step called
@@ -258,3 +257,12 @@ A는 속도는 충분하지만 정확도 미달이고 C는 정확도를 통과�
 2. `step`은 `backward` 뒤인지 확인한다.
 3. `zero_grad`가 새 gradient 계산 전에 있는지 확인한다.
 4. 첫 위반과 복구 순서를 함께 보고한다.
+
+observed = ["forward", "loss", "step", "zero_grad", "backward"]
+
+```bash
+  first_violation: backward must precede step
+  recommended: zero_grad -> forward -> loss -> backward -> step
+```
+
+
