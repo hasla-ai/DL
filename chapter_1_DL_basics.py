@@ -142,3 +142,4 @@ weight_diff = torch.abs(weight_after - weight_before).sum().item()
 print(f"Weight 업데이트 변화량: {weight_diff:.6f}")
 assert weight_diff > 0, "Weight가 업데이트되지 않았습니다!"
 print("✅ 한 batch 학습 후 Weight가 성공적으로 변경되었습니다.")
+

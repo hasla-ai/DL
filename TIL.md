@@ -512,7 +512,7 @@ model_a params: 38
 model_b params: 58
 ```
 
-# [3-3강] 가중치/편향과 nn.Linear - 실습 (학생용)
+# [3-3강] 가중치/편향과 nn.Linear - 실습
 
 ## 필수 1: nn.Linear weight/bias shape
 
