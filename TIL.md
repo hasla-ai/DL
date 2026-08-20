@@ -335,47 +335,6 @@ model expects in_features: 5
 # 필수 2. batch 차원 누락 수정하기
 single_sample = torch.randn(5)
 # TODO: batch 차원을 추가해 model 입력으로 만들세요.
-batch_sample = single_sample
-batch_sample = single_sample.unsqueeze(0)
-print('single shape:', single_sample.shape)
-print('batch shape:', batch_sample.shape)
-
-## 심화 1: 디버깅 체크리스트 작성
-
-**문제 설명**
-shape/device 오류를 만났을 때 확인할 항목을 정리합니다.
-
-```bash
-x = torch.randn(8, 5)
-# TODO: x의 feature 수에 맞게 in_features를 수정해보세요.
-model = nn.Linear(5, 2)
-print('x shape:', x.shape)
-print('model expects in_features:', model.in_features)
-```
-
-```bash
-x shape: torch.Size([8, 5])
-model expects in_features: 5
-```
-
-검증(모델 계산 결과)
-
-```bash
-x = torch.randn(8, 5)
-model = nn.Linear(5, 2)
-out = model(x)
-print('out shape:', out.shape)
-assert out.shape == (8, 2)
-```
-
-## 필수 2: batch 차원 누락 수정
-
-**문제 설명**
-단일 sample에 batch 차원을 추가합니다.
-
-# 필수 2. batch 차원 누락 수정하기
-single_sample = torch.randn(5)
-# TODO: batch 차원을 추가해 model 입력으로 만들세요.
 batch_sample = single_sample.unsqueeze(0)
 out = model(batch_sample)
 print('single shape:', single_sample.shape)
@@ -490,4 +449,66 @@ bias= -3.0 pred= [0, 0, 0, 0]
 bias= 0.0 pred= [1, 1, 0, 0]
 bias= 3.0 pred= [1, 1, 1, 0]
 
+
+# [3-2강] MLP의 입력층/은닉층/출력층 - 실습
+
+## 필수 1: MLP 층별 shape 추적
+
+**문제 설명**
+입력, hidden, logits의 shape을 확인합니다.
+
+hidden = torch.relu(layer1(x))
+## 이 Linear → ReLU 조합이 MLP의 기본적인 한 층을 구성
+
+```bash
+x: torch.Size([4, 6]) hidden: torch.Size([4, 3]) logits: torch.Size([4, 2])
+```
+
+## 필수 2: hidden size와 parameter 수
+
+**문제 설명**
+hidden size 변경 시 parameter 수가 어떻게 달라지는지 계산합니다.
+
+# 필수 2. hidden size를 바꾸면 parameter 수가 어떻게 달라질까요?
+def count_params(model):
+    return sum(p.numel() for p in model.parameters()) 
+## PyTorch 실제 파라미터 수 
+
+# TODO: hidden_dim=4인 MLP를 만들어 parameter 수를 출력해보세요.
+model = nn.Sequential(nn.Linear(6, 3), nn.ReLU(), nn.Linear(3, 2))
+print('parameter count(before):', count_params(model))
+
+model = nn.Sequential(nn.Linear(6, 4), nn.ReLU(), nn.Linear(4, 2))
+print('parameter count(after):', count_params(model))
+
+'''bash
+parameter count(before): 29
+parameter count(after): 38
+'''
+
+
+## 심화 1: depth와 width 비교
+
+**문제 설명**
+은닉층 개수에 따른 parameter 수 차이를 비교합니다.
+
+layer1 = nn.Linear(input_dim, hidden_dim) # (6,3)
+layer2 = nn.Linear(hidden_dim, output_dim) # (3,2)
+
+# TODO: hidden, logits를 계산해보세요.
+hidden = layer1(x)
+logits = layer2(hidden)
+
+model_a = nn.Sequential(nn.Linear(6, 4), nn.ReLU(), nn.Linear(4, 2))
+model_b = nn.Sequential(nn.Linear(6, 4), nn.ReLU(), nn.Linear(4, 4), nn.ReLU(), nn.Linear(4, 2))
+print('model_a params:', count_params(model_a))
+print('model_b params:', count_params(model_b))
+
+```bash
+x: torch.Size([4, 6]) hidden: torch.Size([4, 3]) logits: torch.Size([4, 2])
+parameter count(before): 29
+parameter count(after): 38
+model_a params: 38
+model_b params: 58
+```
 
