@@ -448,3 +448,119 @@ A는 예산 안이지만 class logit이 하나 부족합니다. C는 출력 계�
 
 **적용 범위와 한계:** 정확히 class 5개라는 현재 라우터 정책에 따라 B가 선택됩니다. class 집합이 바뀌면 출력 head와 label mapping을 함께 갱신해야 하며, 예산 통과가 latency나 accuracy 기준 통과를 대신하지 않습니다. 구현 뒤에는 named parameters의 실제 합계도 수동 계산 65와 대조합니다.
 
+[3장 4강 심화] - 입출력 차원 계산
+
+## 실습 배경
+
+루멘 팀은 문서 첫 페이지를 1채널 4×4 썸네일로 바꿔 MLP 기준선을 만들었습니다. 전처리 코드가 `torch.flatten(images)`를 호출하자 batch 두 장이 길이 32의 샘플 하나처럼 합쳐졌습니다.
+
+오류가 즉시 나면 고치기 쉽지만 첫 Linear를 32로 잘못 맞추면 코드는 실행되고 샘플 경계가 사라집니다. flatten에서는 결과 원소 수뿐 아니라 첫 축이 원래 batch와 같은지가 핵심입니다.
+
+이번 실습에서는 `(B,C,H,W)`를 `(B,C*H*W)`로 바꾸고 첫 Linear의 `in_features`를 계산합니다.
+
+## 실습 목표
+
+- 이미지 flatten 전후 shape를 계산한다.
+- batch 축을 유지하는 flatten을 구현한다.
+- 동적 batch에서도 같은 코드가 동작하도록 만든다.
+- 실행 가능한 잘못된 구조를 검증 계약으로 차단한다.
+
+## 진행 방식
+
+- 입력은 `(B,1,4,4)`, 샘플당 feature는 16개다.
+- batch 크기를 상수로 하드코딩하지 않는다.
+- flatten 뒤 `flat.shape[0] == images.shape[0]`을 검사한다.
+
+## 오늘의 업무 흐름
+
+입력 축 표기 → 샘플당 feature 계산 → batch 보존 flatten → Linear 연결 → 구조 승인
+
+## 상황 자료
+
+```
+images.shape=(2,1,4,4)
+wrong_flat.shape=(32,)
+expected_flat.shape=(2,16)
+```
+## 문제 1. 실행 가능한 샘플 혼합 버그 진단
+
+### 업무 요청
+
+전체 flatten과 batch 보존 flatten을 비교해 무엇이 사라졌는지 수치로 보여주세요.
+
+### 수행해야 할 작업
+
+1. 두 방식의 shape를 계산한다.
+2. 원소 수가 같은지 확인한다.
+3. batch 축 보존 여부를 확인한다.
+4. `Linear(32,3)`로 맞추는 수정이 왜 틀렸는지 설명한다.
+
+[3장 4강 심화] - 입출력 차원 계산
+문제 1. 실행 가능한 샘플 혼합 버그 진단
+before: torch.Size([2, 1, 4, 4])
+after : torch.Size([32])
+batch_coserve_before: torch.Size([2, 1, 4, 4])
+batch_coserve_after : torch.Size([2, 16])
+
+ 2. 원소 수가 같은지 확인한다.
+assert flat_all.numel() == images.numel()
+assert flat_batch.numel() == images.numel()
+
+# 3. batch 축 보존 여부를 확인한다.
+## start_dim=1이면 images.shape[0]이 그대로 유지되는지
+
+assert flat_batch.shape[0] == images.shape[0]
+assert flat_all.shape[0] != images.shape[0]
+
+# 4. `Linear(32,3)`로 맞추는 수정이 왜 틀렸는지 설명한다.
+
+## 문제 2. 동적 shape flatten guard 작성
+
+### 업무 요청
+
+batch와 이미지 크기가 달라져도 샘플당 feature를 자동 계산하고 기대 feature와 비교하는 함수를 작성하세요.
+
+### 수행해야 할 작업
+
+1. 입력이 4차원인지 검사한다.
+2. batch만 남겨 flatten한다.
+3. 기대 feature 수를 인자로 검사한다.
+4. batch 1과 batch 3에서 재사용한다.
+
+
+batch 1: torch.Size([1, 16])
+batch 3: torch.Size([3, 16])
+
+## 문제 3. shape는 같지만 샘플 순서가 다른 전처리 감사
+
+### 업무 요청
+
+원본 batch에는 샘플 두 개가 있고 각 샘플 값의 간단한 checksum은 `[120,376]`입니다. 세 전처리 후보의 output shape와 샘플별 checksum을 함께 감사해 `Linear(16,3)`에 넘길 수 있는 안을 승인하세요. shape만 맞아도 샘플 순서가 바뀌면 label과 입력이 어긋납니다.
+
+### 수행해야 할 작업
+
+1. batch 2와 feature 16 계약을 검사한다.
+2. 원본 샘플 checksum 순서가 보존됐는지 검사한다.
+3. 두 계약을 모두 통과한 후보만 승인한다.
+4. 승인안의 logits shape와 label 정렬 위험을 보고한다.
+
+### 상황 자료
+
+```
+원본 sample checksum=[120,376]
+A shape=(2,16) checksum=[120,376]
+B shape=(2,16) checksum=[376,120]
+C shape=(1,32) checksum=[496]
+```
+
+audit: {'A': {'input_contract': True, 'sample_order': True}, 'B': {'input_contract': True, 'sample_order': False}, 'C': {'input_contract': False, 'sample_order': False}}
+selected: A
+logits_shape: (2, 3)
+
+**해설**
+
+A만 `(2,16)`과 checksum 순서 `[120,376]`을 함께 보존합니다. B는 Linear 실행과 logits shape는 정상이어도 두 샘플이 바뀌어 원래 label 순서와 어긋나는 silent bug입니다. C는 전체 원소 수 32만 유지하고 batch를 합쳤습니다. 따라서 승인안 A의 logits shape는 `(2,3)`입니다.
+
+**shape assert만으로 놓치는 것:** B는 모든 shape 검사를 통과하므로 값 순서 증거가 없으면 발견되지 않습니다. 실제 파이프라인에서는 checksum 자체보다 sample id를 전처리 전후에 함께 운반하고 label의 id와 맞는지 검사하는 편이 안전합니다.
+
+checksum은 수업용 작은 증거라 서로 다른 값 배열이 같은 합을 만들 수 있습니다. 운영에서는 고유 sample id와 전처리 단계별 row mapping을 보존하고, batch 1과 마지막 작은 batch에서도 같은 검사를 실행해야 합니다. 이 승인은 MLP 입력 경계에 대한 것이며 분류 품질 승인은 아닙니다.

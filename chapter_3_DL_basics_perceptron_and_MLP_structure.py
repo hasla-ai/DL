@@ -354,3 +354,145 @@ print("eligible:", eligible)
 selected = eligible[0] if eligible else None
 
 print("selected:", selected)
+
+
+
+# [3장 4강 심화] - 입출력 차원 계산
+print("[3장 4강 심화] - 입출력 차원 계산")
+
+# 문제 1. 실행 가능한 샘플 혼합 버그 진단
+print("문제 1. 실행 가능한 샘플 혼합 버그 진단")
+
+# wrong/correct shape, batch 보존 판정, 원인 설명을 제출한다.
+
+# 입력은 (B,1,4,4), 샘플당 feature는 16개다.
+# images.shape=(2,1,4,4)
+# wrong_flat.shape=(32,)
+# expected_flat.shape=(2,16)
+
+images = torch.randn(2, 1, 4, 4)
+
+# 1. 전체 flatten과 batch 보존 flatten 두 방식의 shape를 계산한다.
+
+flat_all = torch.flatten(images, start_dim=0)
+print("before:", images.shape)
+print("after :", flat_all.shape)
+
+flat_batch = torch.flatten(images, start_dim=1)
+print("batch_coserve_before:", images.shape)
+print("batch_coserve_after :", flat_batch.shape)
+
+
+# 2. 원소 수가 같은지 확인한다.
+assert flat_all.numel() == images.numel()
+assert flat_batch.numel() == images.numel()
+
+# 3. batch 축 보존 여부를 확인한다.
+## start_dim=1이면 images.shape[0]이 그대로 유지되는지
+
+assert flat_batch.shape[0] == images.shape[0]
+assert flat_all.shape[0] != images.shape[0]
+
+# 4. `Linear(32,3)`로 맞추는 수정이 왜 틀렸는지 설명한다.
+
+
+
+# 문제 2. 동적 shape flatten guard 작성
+print("문제 2. 동적 shape flatten guard 작성")
+
+def flatten_for_mlp(images, expected_features):
+    # 1. 입력이 4차원인지 검사한다.
+    assert images.ndim == 4, "expected (B,C,H,W)"
+
+    # 2. batch만 남겨 flatten한다.
+    flat = images.reshape(images.shape[0], -1)
+
+    # 3. 기대 feature 수를 인자로 검사한다.
+    assert flat.shape[1] == expected_features, "in_features mismatch"
+
+    return flat
+
+# 4. batch 1과 batch 3에서 재사용한다.
+
+images_batch1 = torch.randn(1, 1, 4, 4)
+images_batch3 = torch.randn(3, 1, 4, 4)
+
+flat1 = flatten_for_mlp(images_batch1, expected_features=16)
+flat3 = flatten_for_mlp(images_batch3, expected_features=16)
+
+print("batch 1:", flat1.shape)
+print("batch 3:", flat3.shape)
+
+
+# 문제 3. shape는 같지만 샘플 순서가 다른 전처리 감사
+print("문제 3. shape는 같지만 샘플 순서가 다른 전처리 감사")
+
+## 원본 batch에는 샘플 두 개가 있고 각 샘플 값의 간단한 checksum은 [120,376]입니다.
+## checksum은 여기서는 각 데이터가 제대로 보존됐는지 확인하기 위한 간단한 검사값(원소 합 등)
+
+# batch와 이미지 크기가 달라져도 샘플당 feature를 자동 계산하고 기대 feature와 비교하는 함수를 작성
+## 세 전처리 후보의 output shape와 샘플별 checksum을 함께 감사해 Linear(16,3)에 넘길 수 있는 안을 승인
+
+original_shape = (2, 16)
+original_checksum = [120, 376]
+
+candidates = {
+    "A": ((2, 16), [120, 376]),
+    "B": ((2, 16), [376, 120]),
+    "C": ((1, 32), [496])
+}
+
+def select_candidate(candidates, source_checksums, model):
+    audit = {}
+
+    for name, candidate in candidates.items():
+
+        shape_ok = (
+            candidate["shape"][0] == 2
+            and candidate["shape"][1] == model.in_features
+        )
+
+        sample_order_ok = (
+            candidate["checksums"] == source_checksums
+        )
+
+        audit[name] = {
+            "input_contract": shape_ok,
+            "sample_order": sample_order_ok,
+        }
+
+    approved = [
+        name
+        for name, checks in audit.items()
+        if all(checks.values())
+    ]
+
+    selected = approved[0] if len(approved) == 1 else "보류"
+
+    if selected != "보류":
+        batch_size = candidates[selected]["shape"][0]
+        logits_shape = (batch_size, model.out_features)
+    else:
+        logits_shape = None
+
+    return audit, selected, logits_shape
+
+source_checksums = [120, 376]
+
+candidates = {
+    "A": {"shape": (2, 16), "checksums": [120, 376]},
+    "B": {"shape": (2, 16), "checksums": [376, 120]},
+    "C": {"shape": (1, 32), "checksums": [496]},
+}
+
+model = nn.Linear(16, 3)
+
+audit, selected, logits_shape = select_candidate(
+    candidates,
+    source_checksums,
+    model
+)
+
+print("audit:", audit)
+print("selected:", selected)
+print("logits_shape:", logits_shape)
