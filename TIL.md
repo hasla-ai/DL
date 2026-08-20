@@ -512,3 +512,116 @@ model_a params: 38
 model_b params: 58
 ```
 
+# [3-3강] 가중치/편향과 nn.Linear - 실습 (학생용)
+
+## 필수 1: nn.Linear weight/bias shape
+
+**문제 설명**
+Linear layer의 weight, bias shape과 parameter 수를 계산합니다.
+
+# 필수 1. nn.Linear의 weight/bias shape 확인
+linear = nn.Linear(in_features=5, out_features=3)
+print('weight shape:', linear.weight.shape)
+print('bias shape:', linear.bias.shape)
+
+# TODO: parameter 수를 직접 계산해보세요.
+manual_param_count = linear.weight.numel() + linear.bias.numel()
+
+#  X.shape(3,5) @ weight.T shape(5,3) + bias shape (,3)
+
+print('manual_param_count:', manual_param_count)
+
+weight shape: torch.Size([3, 5])
+bias shape: torch.Size([3])
+manual_param_count: 18
+
+## 필수 2: named_parameters 확인
+
+**문제 설명**
+parameter 이름, shape, 개수를 출력합니다.
+
+for name, param in linear.named_parameters():
+    print(name, param.shape, param.numel())
+
+weight torch.Size([3, 5]) 15
+bias torch.Size([3]) 3
+
+## model.parameters() - parameter는 파라미터 값만, 이것은 (이름, 파라미터) 쌍.
+## named_parameters()
+## 모델 학습 자체에는 이름이 없어도 된다. 그러나 사람이 모델을 관리·분석·디버깅하려면 이름이 매우 유용함.
+
+ 0.weight torch.Size([3, 5])    0.weight → 첫 번째 Linear의 weight
+ 0.bias   torch.Size([3])       0.bias   → 첫 번째 Linear의 bias
+ 2.weight torch.Size([2, 3])    2.weight → 두 번째 Linear의 weight
+ 2.bias   torch.Size([2])       2.bias   → 두 번째 Linear의 bias
+
+# 유용성
+  예를 들어 모델의 특정 층만 보고 싶을 때 또는 모델 저장/불러오기(`model.state_dict()`)
+
+for name, param in model.named_parameters():
+    if "0.weight" in name:
+        print(param)
+
+## 심화 1: 수식과 nn.Linear 비교
+
+**문제 설명**
+x@W.T+b 계산이 nn.Linear와 같은 결과인지 확인합니다.
+
+# 심화 1. 직접 계산한 Linear와 nn.Linear 비교하기
+x = torch.randn(2, 5)
+# TODO: y_manual = x @ W.T + b 형태를 완성해보세요.
+y_layer = linear(x)
+y_manual = x @ linear.weight.T + linear.bias
+print('max difference:', (y_layer - y_manual).abs().max().item())
+
+max difference: 0.0
+
+# [3-4강] 입출력 차원 계산과 flatten - 실습
+
+## 필수 1: 이미지 Tensor flatten
+
+**문제 설명**
+이미지 Tensor를 batch 차원을 유지한 채 flatten합니다.
+
+# 필수 1. 이미지 Tensor flatten하기
+images = torch.randn(8, 1, 28, 28)
+# TODO: batch 차원을 유지하면서 flatten해보세요.
+flat = torch.flatten(images, start_dim=1)
+print('images shape:', images.shape)
+print('flat shape:', flat.shape)
+
+images shape: torch.Size([8, 1, 28, 28])
+flat shape: torch.Size([8, 784])
+
+## 필수 2: MLP 입력 차원 맞추기
+
+**문제 설명**
+flatten 결과에 맞게 Linear 입력 차원을 설정합니다.
+
+# 필수 2. MLP 입력 차원 맞추기
+# TODO: flat의 feature 수에 맞게 in_features를 설정하세요.
+in_features = 1*28*28
+model = nn.Linear(in_features, 4)
+print('model.in_features:', model.in_features)
+
+model.in_features: 784
+
+## 심화 1: reshape/view 연습
+
+**문제 설명**
+3차원 Tensor를 batch-first 2차원 Tensor로 변환합니다.
+
+# 심화 1. reshape/view 사용 시 batch 차원을 유지하기
+small = torch.randn(2, 3, 4)
+# TODO: small을 (2, 12)로 바꿔보세요.
+small_flat = small.view(small.size(0), -1)
+print('small_flat shape:', small_flat.shape)
+
+small_flat2 = small.reshape(small.size(0), -1)
+print('small_flat2 shape:', small_flat.shape)
+
+
+small_flat shape: torch.Size([2, 12])
+small_flat2 shape: torch.Size([2, 12])
+
+
