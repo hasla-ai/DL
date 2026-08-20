@@ -153,7 +153,180 @@ next_candidate: B
 
 표의 GPU 처리량은 수정 뒤 예상값이므로 재측정 전에는 확정 자료가 아닙니다. B가 재측정에서 기준을 통과하면 그때 validation 품질까지 별도로 확인해 배포 판단으로 넘어갑니다.
 
+# [2장 4강 심화] - 오류 수정 실습 (1)
+
+## 실습 배경
+
+루멘의 안전 문서 분류기에서 한 번에 세 오류가 보고됐습니다. 입력 feature가 모델의 `in_features`와 다르고, 다중 분류 target은 float이며, 서버 실행에서는 label만 CPU에 남았습니다. 마지막 traceback 한 줄만 고치면 다음 오류가 이어져 디버깅 시간이 길어집니다.
+
+팀은 오류 메시지를 `shape`, `dtype`, `device` 세 범주로 나눈 뒤, 실패한 연산 직전 Tensor와 모델 기대값을 비교하는 절차를 표준으로 삼으려 합니다. 수정 뒤에도 같은 속성을 다시 출력해 계약이 회복됐는지 확인해야 합니다.
+
+이번 페이지에서는 증상별 한 줄 수정이 아니라 재사용 가능한 triage 순서와 batch 준비 함수를 만듭니다.
+
+## 실습 목표
+
+- traceback을 shape·dtype·device 문제로 분류한다.
+- `nn.Linear` 입력 마지막 차원과 `in_features`를 비교한다.
+- 다중 분류 target shape/dtype을 복구한다.
+- 수정 후 속성 재검증을 자동화한다.
+
+## 진행 방식
+
+- 첫 실패 연산부터 고치되 나머지 계약 위반도 목록으로 남긴다.
+- 입력 feature를 버릴지 모델을 바꿀지는 데이터 계약을 근거로 결정한다.
+- 이번 상황에서는 실제 feature가 5개이므로 모델을 5개 입력으로 맞춘다.
+
+## 오늘의 업무 흐름
+
+오류 마지막 줄 읽기 → 범주 분류 → 직전 Tensor 감사 → 기대/실제 비교 → 수정 후 재감사
+
+## 상황 자료
+
+```
+RuntimeError: mat1 and mat2 shapes cannot be multiplied (4x5 and 4x3)
+다음 재실행: expected scalar type Long but found Float
+서버 재실행: tensors on cuda:0 and cpu
+```
+
+## 문제 1. 연쇄 오류를 한 번에 triage하기
+
+### 업무 요청
+
+모델 기대값과 batch 메타데이터로 현재 잠재 오류를 모두 나열하고, 실제 실행에서 처음 드러날 오류를 지정하세요.
+
+### 수행해야 할 작업
+
+1. 입력 마지막 차원과 `in_features`를 비교한다.
+2. target shape와 dtype을 다중 분류 계약과 비교한다.
+3. 모델·입력·target device를 비교한다.
+4. 실행 순서상 첫 실패를 보고한다.
+
+시작 코드
+
+```bash
+meta = {"x_shape": (4, 5), "target_shape": (4,), "target_dtype": "float32",
+        "model_in": 4, "model_device": "cuda:0", "x_device": "cuda:0", "target_device": "cpu"}
+```
+
+input features: 5
+model in_features: 4
+shape ERROR
+target shape: (4,)
+target dtype: float32
+shape OK: True
+dtype OK: False
+model device: cuda:0
+x device: cuda:0
+target device: cpu
+device OK: False
+
+RuntimeError: mat1 and mat2 shapes cannot be multiplied
+다음 재실행: expected scalar type Long but found Float
+서버 재실행: tensors on cuda:0 and cpu
+## 실제 실행에서는 shape 오류가 가장 먼저 발생. ##  
+  1차 실행 이후 shape 검사 ❌ 여기서 실패. dtype 검사까지 도달하지 못함, device 검사까지 도달하지 못함.
+
+**해설**
+ex) issues: ['shape:model_input', 'dtype_or_shape:target', 'device:mismatch']
+first_failure: shape:model_input
+
+## forward에서 shape가 먼저 사용되므로 첫 표면 오류가 됩니다.##
+  forward가 입력 shape를 먼저 소비하므로 Linear 오류가 가장 먼저 납니다. 이것만 고치면 loss 단계에서 target dtype 또는 device 문제가 드러납니다. 따라서 수정은 모델/입력 계약, target dtype·shape, device 순으로 진행하되 세 항목을 처음부터 목록화합니다. traceback 순서는 코드 흐름에 따라 달라질 수 있으므로 범주 목록 자체가 더 일반적인 도구입니다.
+
+**접근 순서:** 파이프라인 실행 순서에 맞춰 forward의 입력 shape, loss의 target 계약, device 동등성을 모두 목록화합니다. 첫 표면 오류는 shape지만 뒤 잠재 오류도 같은 티켓에 남겨 한 번의 수정 뒤 재실행을 반복하는 시간을 줄입니다.
+
+**오답 원인:** traceback 마지막 줄 하나만 보고 수정하면 다음 단계의 dtype·device 문제가 연달아 나타납니다. 실제 feature 5개 중 하나를 임의로 잘라 model_in 4에 맞추는 답은 데이터 계약과 정보를 변경하는 별도 의사결정입니다.
+
+**적용 한계:** 첫 실패 순서는 현재 코드가 forward 후 loss를 호출한다는 전제에 따릅니다. 사전 device 검사나 다른 분기가 있으면 순서가 달라질 수 있으므로 범주 목록은 유지하되 실제 호출 경로에서 최초 실패를 다시 확인해야 합니다.
 
 
+## 문제 2. 계약을 복구하는 `prepare_batch` 작성
 
+### 업무 요청
 
+실제 데이터는 feature 5개, class 3개의 다중 분류입니다. 입력은 float32, target은 1차원 long, 두 Tensor는 모델 device에 있도록 준비 함수를 작성하세요.
+
+### 수행해야 할 작업
+
+1. 모델을 `Linear(5,3)`으로 만든다.
+2. 입력을 float32로 변환한다.
+3. target을 `(B,)` long으로 정규화한다.
+4. device와 shape를 assert하고 forward를 실행한다.
+
+# prepare_batch 입구에서 sample 수·feature 수·label dtype을 확인한 뒤 지정 device로 함께 이동합니다.
+# 반환 shape와 device를 다시 assert해 helper 내부 수정이 실제 모델 계약과 연결됐는지 검증합니다.
+
+torch.float32
+x shape: torch.Size([4, 5])
+target shape: torch.Size([4])
+out shape: torch.Size([4, 3])
+logits: (4, 3) torch.float32 cpu
+target: (4,) torch.int64 cpu
+
+**해설**
+## target을 float로 유지한 채 소수점 이하를 절삭하는 등 값만 정수처럼 보이게 두지 않도록 유의.
+
+데이터 정의상 feature가 5개이므로 모델을 그 계약에 맞춥니다. 변환 뒤에 assert를 두어 reshape가 잘못된 원소 수를 조용히 숨기지 못하게 합니다. 대표 출력은 CPU 검증 환경 기준이며 CUDA에서도 동등성 계약은 같습니다. 이 helper는 다중 분류용이므로 회귀나 BCE target에 그대로 쓰면 안 됩니다.
+
+**접근 순서:** 데이터 정의가 feature 5개임을 먼저 확정해 모델을 Linear(5,3)으로 만들고, 입력 float·target 1차원 long·공통 device 순서로 정규화합니다. 변환 직후 모든 계약을 assert한 뒤에만 forward를 호출합니다.
+
+**오답 원인:** reshape(-1)는 원소 수가 잘못된 target도 길이만 맞아 보이게 할 수 있으므로 batch 크기 재검사가 필요합니다. 모델 device를 cuda 문자열로 하드코딩하면 CPU fallback과 다른 GPU index에서 다시 실패합니다.
+
+**적용 한계:** 이 prepare_batch는 기본 다중 클래스용입니다. 회귀나 BCE target을 long으로 바꾸면 의미가 틀리고, feature 5개의 열 순서와 값 범위까지는 검증하지 않으므로 데이터 schema 감사가 별도로 필요합니다.
+
+## 문제 3. 장애 티켓 우선순위 정하기
+
+### 업무 요청
+
+세 로그는 **같은 commit과 같은 요청 `req-742`의 단일 순차 trace**에서 수집됐습니다. 동일한 인력 한 명이 처리할 때 먼저 재현할 티켓을 "가장 이른 실패 + 다른 오류를 가릴 가능성" 기준으로 정렬하세요.
+
+### 수행해야 할 작업
+
+1. 각 오류 범주를 지정한다.
+2. 로그의 연산명으로 pipeline 위치를 판단한다.
+3. 앞 실패가 뒤 오류를 가리는 순서로 정렬한다.
+4. 우선순위가 사업 중요도와 같지는 않다는 한계를 쓴다.
+
+### 상황 자료
+
+```
+T1 forward: mat1 32x768, mat2 512x4
+T2 loss: expected Long but found Float
+T3 evaluation: cpu/cuda mismatch
+```
+결과
+
+T1 → shape mismatch
+T2 → dtype mismatch
+T3 → device mismatch
+
+T1 → 모델 추론 단계
+T2 → 손실 계산 단계
+T3 → 평가 단계
+
+T2 depends on ['T1']
+T3 depends on ['T2']
+## 해답: order: ['T1', 'T2', 'T3']
+
+다만 엄밀하게는 evaluation이 반드시 loss에 의존한다고 로그만으로 확정할 수는 없음.
+단일순차 trace가 아니면 evaluation이 별도의 forward를 다시 수행하는 구조라면 T3는 T2에 직접 의존하지 않을 수도.
+
+# 각 티켓의 실행 차단 여부와 silent corruption 위험을 분리해 우선순위를 계산합니다.
+# 오류 메시지가 크다는 이유가 아니라 영향 범위와 탐지 가능성을 근거로 조사 순서를 정합니다.
+
+**해설**
+
+이 정렬은 코드 경로를 복구하는 디버깅 순서입니다. T1을 고쳐야 T2가 재현되고, 학습이 지나야 T3 평가 오류까지 확인할 수 있습니다. 그러나 개인정보 노출 같은 사업 위험이 연결돼 있다면 발생 단계가 늦어도 더 높은 대응 우선순위를 가질 수 있습니다. 여기서는 기술적 재현 순서만 결정합니다.
+
+**접근 순서:** 각 티켓을 실제 연산 단계와 shape·dtype·device 범주로 먼저 태깅합니다. 그 다음 앞 단계 실패가 뒤 단계를 가릴 수 있다는 기준으로 forward, loss, evaluation 순서로 재현해 코드 경로를 단계적으로 복구합니다.
+
+**오답 원인:** 메시지가 가장 길거나 발생 시간이 늦은 티켓을 먼저 고르면 앞 오류 때문에 동일 경로를 재현하지 못할 수 있습니다. 기술적 실행 순서를 사업 영향 우선순위와 같은 것으로 보고하는 것도 목적을 혼동한 답입니다.
+
+**적용 한계:** 여기서 정한 것은 한 엔지니어의 디버깅 재현 순서입니다. 개인정보 노출이나 서비스 중단처럼 위험도가 큰 티켓은 별도 사고 대응 우선순위가 더 높을 수 있으며, 실제 운영에서는 두 기준을 함께 표기해야 합니다.
+
+디버깅 순서는 순차 의존성 때문에: T1 forward → shape 오류, T2 loss    → dtype 오류, T3 eval    → device 오류.
+(T1 → T2 → T3).
+그런데 사업 우선순위는 전혀 다른 기준임. 예를 들어: T1: 특정 고객의 핵심 기능이 아예 실행되지 않음, T2: 내부 학습 작업에서만 발생,
+T3: 평가 환경에서만 발생, 이라면 사업적으로는:T1 > T3 > T2가 될 수도 있고, 반대로 T3가 고객에게 잘못된 평가 결과를 제공하는 치명적 문제라면: T3 > T1 > T2가 될 수도 있음.
+
+  즉, 디버깅 순서는 기술적 의존성에 따라 순차적으로 검토해야 하나 사업 우선순위는 영향도, 고객, 매출, SLA,  위험 등을 종합적으로 고려하여 개별적으로 판단하여야 한다.
