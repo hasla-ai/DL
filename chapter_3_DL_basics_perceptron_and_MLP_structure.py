@@ -237,3 +237,120 @@ for name, model in models.items():
         print(f"{name}: {total_params} → 제외")
 
 # 4. 선택 기준과 표현력 판단의 한계를 쓴다.
+# 끝
+
+# [3장 3강 심화] - Linear layer shape 실습 (1)
+print("[3장 3강 심화] - Linear layer shape 실습")
+# layer=Linear(3,4)
+# x.shape=(2,3)
+# stored weight.shape=(4,3)
+
+# 문제 1. 전치 누락 원인 진단: 잘못된/올바른 shape 계약과 수정식을 제출한다.
+print("문제 1: 전치 누락 원인 진단")
+# 1. x와 weight의 행렬 곱 내부 차원을 비교한다.
+x = torch.randn(2, 3)
+weight = torch.randn(4, 3)
+print("x shape:", x.shape)
+print("weight shape:", weight.shape)
+
+# x @ weight에서 내부 차원 비교: 전치 누락 진단
+print("x 내부 차원:", x.shape[-1])
+print("weight 내부 차원:", weight.shape[0])
+
+print("일치:", x.shape[-1] == weight.shape[0])
+
+# 2. 저장 weight를 전치해야 하는 이유를 쓴다.
+# weight = (out_features, in_features) = (4,3)
+# PyTorch Linear가 weight를 (out_features, in_features)로 저장한다.
+# 입력 (batch, in_features)와 행렬 곱을 하려면 weight를 (in_features, out_features)로 맞춰야 하므로 전치한다.
+
+# 3. 올바른 출력 shape를 계산한다.
+
+correct_out_shape = (x.shape[0], weight.shape[0]) # x.shape[0] Batch_size. weight.shape[0]은 output feature 수.
+print("correct output shape:", correct_out_shape)
+
+# 4. weight shape를 `(in,out)`로 저장한다고 오해한 지점을 지적한다.
+
+
+# 문제 2. 수동 계산과 모듈 결과 검증: 두 출력과 same=True를 제출한다.
+print("문제 2. 수동 계산과 모듈 결과 검증")
+
+# 1. Linear(3,2)를 만든다.
+linear = nn.Linear(3, 2)
+
+    
+# 2. gradient 추적 없이 parameter 값을 복사한다.
+with torch.no_grad():
+    linear.weight.copy_(
+        torch.tensor([
+            [1., 0., -1.],
+            [0.5, 0.5, 0.5]
+        ])
+    )
+    linear.bias.copy_(torch.tensor([0.2, -0.5]))
+x = torch.tensor([[1., 2., 3.], [0., -1., 2.]])
+
+
+# 3. 모듈과 수동 출력을 각각 계산한다.
+y_module = linear(x)
+y_manual = x @ linear.weight.T + linear.bias
+print("module output:")
+print(y_module)
+print("manual output:")
+print(y_manual)
+# 4. shape와 근사 동일성을 검증한다.
+print("same?", torch.allclose(y_module, y_manual))
+
+ 
+# 문제 3. 출력 head 예산 검토: 후보별 parameter와 selected를 제출한다.
+print("문제 3. 출력 head 예산 검토")
+
+A=nn.Linear(12,4)
+B=nn.Linear(12,5)
+C=nn.Linear(12,7)
+
+required_classes=5
+budget=80
+
+# 1. 후보별 weight와 bias shape를 적는다.
+print("A weight shape:", A.weight.shape)
+print("A bias shape  :", A.bias.shape)
+
+print("B weight shape:", B.weight.shape)
+print("B bias shape  :", B.bias.shape)
+
+print("C weight shape:", C.weight.shape)
+print("C bias shape  :", C.bias.shape)
+
+# 2. 총 parameter 수를 계산한다.
+print("total params:", A.weight.numel() + A.bias.numel())
+print("total params:", B.weight.numel() + B.bias.numel())
+print("total params:", C.weight.numel() + C.bias.numel())
+
+# 3. 필요한 class 수 5를 만족하는지 확인한다.
+
+print("A:", A.out_features == required_classes)
+print("B:", B.out_features == required_classes)
+print("C:", C.out_features == required_classes)
+
+# 4. 예산과 출력 계약을 모두 통과한 후보를 고른다.
+
+models = {
+    "A": A,
+    "B": B,
+    "C": C
+}
+
+eligible = []
+
+for name, model in models.items():
+    total_params = model.weight.numel() + model.bias.numel()
+
+    if total_params <= budget and model.out_features == required_classes:
+        eligible.append(name)
+
+print("eligible:", eligible)
+
+selected = eligible[0] if eligible else None
+
+print("selected:", selected)

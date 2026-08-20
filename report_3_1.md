@@ -302,3 +302,149 @@ B는 넓지만 예산을 넘습니다. A와 C 중 C가 Linear 층이 하나 더 
 **오답 점검:** width만 큰 B를 표현력이 높다고 즉시 고르면 예산 65를 위반합니다. 반대로 parameter가 가장 적은 A를 자동 선택하면 팀이 정한 Linear 층 수 우선 규칙을 무시하므로 필터와 정렬 기준을 순서대로 적용해야 합니다.
 
 **적용 범위와 한계:** C 선택은 parameter 예산과 구조 규칙에 따른 설계 검토 결과입니다. 실제 성능은 활성화, 초기값, optimizer와 데이터에 따라 달라지며, 깊이가 하나 늘었다는 사실만으로 validation 우위를 보장할 수 없습니다. 선택된 구조는 더미 forward로 최종 shape까지 다시 확인한 뒤 학습 실험으로 넘깁니다.
+
+
+# [3장 3강 심화] - Linear layer shape 실습
+
+## 실습 배경
+
+루멘 팀의 분류 head를 다른 코드로 옮기는 과정에서 weight 행렬 방향이 뒤집혔습니다. 문서에는 `Linear(3,4)`라고 적었지만 수동 계산 코드는 `x @ weight`를 호출했고, PyTorch가 저장하는 `(out,in)` 계약을 놓쳤습니다.
+
+또한 모델 요약에는 weight만 집계되어 bias가 빠졌습니다. 작은 차이는 여러 층에서 누적되어 parameter 예산과 checkpoint 검토를 어긋나게 합니다.
+
+이번 실습은 `nn.Linear(in_features,out_features)`가 `x @ weight.T + bias`로 계산된다는 사실을 수동 계산과 parameter 감사로 검증합니다.
+
+## 실습 목표
+
+- Linear weight `(out,in)`과 bias `(out,)`를 계산한다.
+- 마지막 입력 차원이 `in_features`와 같아야 함을 검증한다.
+- 모듈 출력과 수동 행렬 계산을 비교한다.
+- parameter 예산에 weight와 bias를 모두 반영한다.
+
+## 진행 방식
+
+- batch 입력은 `(B,in)`으로 둔다.
+- 수동 계산은 `x @ weight.T + bias`를 사용한다.
+- 출력값 비교는 허용 오차를 고려한다.
+
+## 오늘의 업무 흐름
+
+Linear 선언 읽기 → parameter shape 예측 → 수동 계산 → 모듈 비교 → 예산 승인
+
+## 상황 자료
+
+```
+layer=Linear(3,4)
+x.shape=(2,3)
+stored weight.shape=(4,3)
+```
+
+## 문제 1. 전치 누락 원인 진단
+
+### 업무 요청
+
+`x @ weight`가 실패한 이유를 shape만으로 설명하고, 올바른 곱의 shape를 출력하세요.
+
+### 수행해야 할 작업
+
+1. x와 weight의 행렬 곱 내부 차원을 비교한다.
+2. 저장 weight를 전치해야 하는 이유를 쓴다.
+3. 올바른 출력 shape를 계산한다.
+4. weight shape를 `(in,out)`로 저장한다고 오해한 지점을 지적한다.
+
+# Linear weight의 (out,in) 축과 수기 행렬곱 방향을 대조해 전치 누락을 찾습니다.
+# batch 차원을 in_features로 사용하지 않고 입력 마지막 축만 layer 계약에 연결합니다.
+
+x shape: torch.Size([2, 3])
+weight shape: torch.Size([4, 3])
+x 내부 차원: 3
+weight 내부 차원: 4
+일치: False
+correct output shape: (2, 4)
+
+**해설**
+
+PyTorch Linear의 weight는 출력 뉴런별 행을 가지므로 `(out,in)`입니다. 입력 `(B,in)`과 곱하려면 `(in,out)`으로 전치합니다. batch 2는 유지되고 마지막 차원이 4가 됩니다. weight를 외부 포맷으로 내보낼 때 저장 규칙이 다를 수 있으므로 이름만 믿지 말고 실제 shape를 확인해야 합니다.
+
+**오답 점검:** weight를 입력 차원과 출력 차원의 순서로 잘못 외워 그대로 곱하면 내부 차원이 맞지 않습니다. 전치 뒤 출력 shape를 반대로 쓰는 답도 batch가 첫 축에 유지된다는 Linear 계약을 놓친 것입니다.
+
+**적용 범위와 한계:** PyTorch Linear 저장 규칙에는 이 설명이 맞지만 외부 라이브러리나 파일 포맷은 다른 방향으로 저장할 수 있습니다. 모델을 옮길 때는 이름보다 실제 parameter shape와 작은 수동 계산을 함께 확인해야 합니다. bias shape도 출력 차원과 같은지 함께 감사해야 전치 오류와 별도 문제를 구분할 수 있습니다.
+
+
+
+## 문제 2. 수동 계산과 모듈 결과 검증
+
+### 업무 요청
+
+고정한 weight·bias로 모듈 출력과 수동 출력이 같은지 확인하는 회귀 테스트를 작성하세요.
+
+### 수행해야 할 작업
+
+1. Linear(3,2)를 만든다.
+2. gradient 추적 없이 parameter 값을 복사한다.
+3. 모듈과 수동 출력을 각각 계산한다.
+4. shape와 근사 동일성을 검증한다.
+
+module output:
+tensor([[-1.8000,  2.5000],
+        [-1.8000,  0.0000]], grad_fn=<AddmmBackward0>)
+manual output:
+tensor([[-1.8000,  2.5000],
+        [-1.8000,  0.0000]], grad_fn=<AddBackward0>)
+same? True
+
+**해설**
+
+# 고정 weight·bias를 no_grad에서 복사해 모듈 출력과 x @ W.T + b를 같은 값으로 비교합니다.
+# shape 일치와 allclose를 함께 검사해 우연히 같은 요약값만 맞는 답을 통과시키지 않습니다.
+
+고정 parameter를 복사한 뒤 동일 입력을 두 경로로 계산합니다. `allclose`는 부동소수점의 작은 표현 차이를 허용합니다. `torch.equal`만 사용하면 수학적으로 같은 계산도 미세한 반올림 차이로 실패할 수 있습니다. 이 테스트는 Linear 한 층의 계산 계약을 검증하며 전체 모델의 정확도는 평가하지 않습니다.
+
+**오답 점검:** 수동식에서 bias를 누락하면 weight 곱만 검증하고 Linear 전체 계산을 비교한 것이 아닙니다. 부동소수점 결과를 exact equality만으로 비교하면 계산 순서의 미세한 반올림 차이를 의미 오류로 잘못 판정할 수 있습니다.
+
+**적용 범위와 한계:** 고정 parameter의 두 샘플 테스트는 모듈과 수동식의 로컬 계약을 확인합니다. 다른 dtype과 device에서도 재검증할 수 있지만, 이 일치 결과가 학습된 weight의 품질이나 분류 성능을 말해 주지는 않습니다.
+
+
+## 문제 3. 출력 head 예산 검토
+
+### 업무 요청
+
+입력 feature 12개인 문서 head 후보 중 parameter 80개 이하에서 class 수 요구를 만족하는 것을 고르세요.
+
+### 수행해야 할 작업
+
+1. 후보별 weight와 bias shape를 적는다.
+2. 총 parameter 수를 계산한다.
+3. 필요한 class 수 5를 만족하는지 확인한다.
+4. 예산과 출력 계약을 모두 통과한 후보를 고른다.
+
+### 상황 자료
+
+```
+A=Linear(12,4), B=Linear(12,5), C=Linear(12,7)
+required_classes=5, budget=80
+```
+
+A weight shape: torch.Size([4, 12])
+A bias shape  : torch.Size([4])
+B weight shape: torch.Size([5, 12])
+B bias shape  : torch.Size([5])
+C weight shape: torch.Size([7, 12])
+C bias shape  : torch.Size([7])
+total params: 52
+total params: 65
+total params: 91
+A: False
+B: True
+C: False
+eligible: ['B']
+selected: B
+
+**해설**
+
+A는 예산 안이지만 class logit이 하나 부족합니다. C는 출력 계약과 예산을 모두 벗어납니다. B의 weight `(5,12)` 60개와 bias 5개가 요구를 만족합니다. 출력 7개 중 5개만 쓰는 설계는 불필요한 parameter뿐 아니라 label 의미도 모호하게 만듭니다.
+
+**오답 점검:** 출력 수가 필요한 class보다 많아도 남는 logits를 버리면 된다고 생각하기 쉽지만 label 의미와 loss 계약이 불명확해집니다. parameter를 셀 때 weight만 더하면 B를 실제보다 작게 기록하게 됩니다.
+
+**적용 범위와 한계:** 정확히 class 5개라는 현재 라우터 정책에 따라 B가 선택됩니다. class 집합이 바뀌면 출력 head와 label mapping을 함께 갱신해야 하며, 예산 통과가 latency나 accuracy 기준 통과를 대신하지 않습니다. 구현 뒤에는 named parameters의 실제 합계도 수동 계산 65와 대조합니다.
+
