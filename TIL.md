@@ -1,4 +1,4 @@
-2026_8_19
+## ** 작성일: 2026_8_19 ** ##
 
 ## 딥러닝 기본 과정 실습 중 딥러닝 기본에 관한 문제를 풀염
 
@@ -254,6 +254,240 @@ fixed_target shape: torch.Size([4, 1])
 - nsqueeze는 단어 그대로 "쥐어짜다(squeeze)의 반대(un-)"라는 뜻.
 - 차원을 쥐어짜서 누르는 squeeze()와 반대로, 차원을 '펼쳐서 1차원을 뚫어준다'는 의미로 기억.
 
+## **## ** 작성일: 2026_8_20 ** ##
 
+# [2-3강] CPU/GPU device와 .to(device) - 실습
+
+## 필수 1: device 확인과 Tensor 이동
+
+**문제 설명**
+cuda 사용 가능 여부를 확인하고 Tensor를 device로 이동합니다.
+
+# Tensor의 .to()는 이동된 Tensor를 반환하므로, 반환값을 다시 x에 저장
+# 참고: nn.Module.to(device)는 모듈의 파라미터와 버퍼를 이동시키고 모듈 자신을 반환
+##  둘 다 x = x.to(device), model = model.to(device)처럼 작성해도 좋음.
+
+x_device = x.to(device)
+
+
+```bash
+    선택된 device: cuda
+    x_device.device: cuda:0
+```
+
+## 필수 2: 모델과 입력 같은 device 맞추기
+
+**문제 설명**
+model과 입력 Tensor가 같은 device에 있도록 구성합니다.
+
+# TODO: model과 x를 같은 device로 이동해보세요.
+model = model.to(device)
+x = x.to(device)
+out = model(x)
+print('out shape:', out.shape)
+
+## 심화 1: batch 이동 helper 작성
+
+**문제 설명**
+입력과 라벨을 한 번에 device로 옮기는 함수를 작성합니다.
+
+# 심화 1. 안전한 device 이동 함수 만들기
+
+```bash
+def move_batch_to_device(batch, device):
+    x, y = batch
+    # TODO: x와 y를 모두 device로 이동해서 반환하세요.
+    return x.to(device), y.to(device)
+
+batch = (torch.randn(2, 4), torch.tensor([0, 1]))
+x_moved, y_moved = move_batch_to_device(batch, device)
+print(x_moved.device, y_moved.device)
+assert x_moved.device == device and y_moved.device == device
+```
+
+```bash
+cuda:0 cuda:0
+```
+# [2-4강] Shape/Device 오류 디버깅 - 실습
+
+## 필수 1: Linear 입력 차원 오류 수정
+
+**문제 설명**
+입력 feature 수에 맞게 nn.Linear의 in_features를 수정합니다.
+# 필수 1. Linear 입력 차원 오류 수정하기
+
+x = torch.randn(8, 5)
+# TODO: x의 feature 수에 맞게 in_features를 수정해보세요.
+model = nn.Linear(5, 2)
+print('x shape:', x.shape)
+print('model expects in_features:', model.in_features)
+
+```bash
+x shape: torch.Size([8, 5])
+model expects in_features: 5
+```
+
+## 필수 2: batch 차원 누락 수정
+
+**문제 설명**
+단일 sample에 batch 차원을 추가합니다.
+
+# 필수 2. batch 차원 누락 수정하기
+single_sample = torch.randn(5)
+# TODO: batch 차원을 추가해 model 입력으로 만들세요.
+batch_sample = single_sample
+batch_sample = single_sample.unsqueeze(0)
+print('single shape:', single_sample.shape)
+print('batch shape:', batch_sample.shape)
+
+## 심화 1: 디버깅 체크리스트 작성
+
+**문제 설명**
+shape/device 오류를 만났을 때 확인할 항목을 정리합니다.
+
+```bash
+x = torch.randn(8, 5)
+# TODO: x의 feature 수에 맞게 in_features를 수정해보세요.
+model = nn.Linear(5, 2)
+print('x shape:', x.shape)
+print('model expects in_features:', model.in_features)
+```
+
+```bash
+x shape: torch.Size([8, 5])
+model expects in_features: 5
+```
+
+검증(모델 계산 결과)
+
+```bash
+x = torch.randn(8, 5)
+model = nn.Linear(5, 2)
+out = model(x)
+print('out shape:', out.shape)
+assert out.shape == (8, 2)
+```
+
+## 필수 2: batch 차원 누락 수정
+
+**문제 설명**
+단일 sample에 batch 차원을 추가합니다.
+
+# 필수 2. batch 차원 누락 수정하기
+single_sample = torch.randn(5)
+# TODO: batch 차원을 추가해 model 입력으로 만들세요.
+batch_sample = single_sample.unsqueeze(0)
+out = model(batch_sample)
+print('single shape:', single_sample.shape)
+print('batch shape:', batch_sample.shape)
+
+print('out shape:', out.shape)
+assert batch_sample.shape == (1,5)
+
+```bash
+single shape: torch.Size([5])
+batch shape: torch.Size([1, 5])
+out shape: torch.Size([1, 2])
+```
+
+## 심화 1: 디버깅 체크리스트 작성
+
+**문제 설명**
+shape/device 오류를 만났을 때 확인할 항목을 정리합니다.
+
+# 심화 1. 디버깅 체크리스트 만들기
+checklist = [
+    '입력 x.shape가 모델 in_features와 맞는지 확인합니다.',
+    'target shape과 dtype이 loss 함수 요구사항에 맞는지 확인합니다.',
+    'model과 Tensor가 같은 device에 있는지 확인합니다.',
+]
+# TODO: shape/device 오류를 만났을 때 확인할 항목 3개를 적어보세요.
+for i, item in enumerate(checklist, 1):
+    print(i, item)
+if not checklist:
+    print('TODO: x.shape, y.shape, model device 등을 체크리스트에 넣어보세요.')
+assert len(checklist) == 3
+
+# [3-1강] 퍼셉트론과 선형 결정 경계 - 실습
+
+## 필수 1: 퍼셉트론 수식 계산
+
+**문제 설명**
+z=x@w+b를 직접 계산합니다.
+
+
+# 필수 1. 퍼셉트론 수식 계산하기
+x = torch.tensor([2.0, -1.0])
+w = torch.tensor([0.5, 1.0])
+b = torch.tensor(0.2)
+# TODO: z = x @ w + b 를 계산해보세요.
+
+z = x @ w + b
+print('z:', z.item())
+
+```bash
+z: 0.20000000
+```
+
+## 필수 2: 선형 결정 경계 예측
+
+**문제 설명**
+여러 point에 대해 z>0 기준으로 class를 예측합니다.
+
+```bash
+# 필수 2. 선형 결정 경계 시각화 준비
+points = torch.tensor([[1., 1.], [2., 1.], [-1., -1.], [-2., -1.]])
+# TODO: 각 point에 대해 z를 계산하고 z > 0이면 1, 아니면 0으로 예측해보세요.
+scores = torch.zeros(len(points))
+
+w = torch.tensor([1., 1.])
+b = 0.
+scores = points @ w + b
+
+pred = (scores > 0).long()
+
+print('scores:', scores.tolist())
+print('pred:', pred.tolist())
+```
+
+결과
+
+```bash
+scores: [2.0, 3.0, -2.0, -3.0]
+pred: [1, 1, 0, 0]
+```
+
+## 심화 1: bias 변화 관찰
+
+**문제 설명**
+bias 값 변화가 예측 결과를 어떻게 바꾸는지 확인합니다.
+
+# 심화 1. bias를 바꾸면 결정 경계가 어떻게 이동하는지 관찰하기
+bias_values = [-1.0, 0.0, 1.0]
+for bias in bias_values:
+    score = points @ w + bias
+    print('bias=', bias, 'pred=', (score > 0).long().tolist())
+
+bias= -1.0 pred= [1, 1, 0, 0]
+bias= 0.0 pred= [1, 1, 0, 0]
+bias= 1.0 pred= [1, 1, 0, 0]
+
+
+# 심화 1. bias를 바꾸면 결정 경계가 어떻게 이동하는지 관찰하기
+
+bias가 바뀌면 결정 경계는 항상 이동한다.
+다만 현재 데이터의 위치 때문에 prediction이 안 바뀔 수도 있다.
+
+bias_values = [-3.0, 0.0, 3.0]
+for bias in bias_values:
+    score = points @ w + bias
+    print('bias=', bias, 'pred=', (score > 0).long().tolist())
+
+z: tensor(0.2000)
+scores: [2.0, 3.0, -2.0, -3.0]
+pred: [1, 1, 0, 0]
+bias= -3.0 pred= [0, 0, 0, 0]
+bias= 0.0 pred= [1, 1, 0, 0]
+bias= 3.0 pred= [1, 1, 1, 0]
 
 
