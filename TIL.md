@@ -625,3 +625,160 @@ small_flat shape: torch.Size([2, 12])
 small_flat2 shape: torch.Size([2, 12])
 
 
+2026_8_21
+
+# [4-1강] 비선형성과 활성화 함수 필요성 - 실습
+
+## 필수 1: ReLU 전후 출력 비교
+
+**문제 설명**
+선형 출력과 ReLU 적용 후 출력 차이를 확인합니다.
+
+x: [-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0]
+linear_only: [-1.4639999866485596, -0.6990000009536743, 0.06499999761581421, 0.8299999833106995, 1.5950000286102295, 2.3589999675750732, 3.124000072479248]
+with_relu: [0.0, 0.0, 0.06499999761581421, 0.8299999833106995, 1.5950000286102295, 2.3589999675750732, 3.124000072479248]
+
+## 필수 2: XOR 데이터 관찰
+
+**문제 설명**
+선형 경계로 어려운 XOR 구조를 데이터로 확인합니다.
+
+XOR data:
+[0.0, 0.0] -> 0
+[0.0, 1.0] -> 1
+[1.0, 0.0] -> 1
+[1.0, 1.0] -> 0
+
+## 심화 1: 비선형 feature 추가
+
+**문제 설명**
+x1*x2 같은 비선형 feature가 표현력을 높이는 이유를 관찰합니다.
+
+expanded features: tensor([[0., 0., 0.],
+        [0., 1., 0.],
+        [1., 0., 0.],
+        [1., 1., 1.]])
+
+3차원 feature 공간에서는 XOR을 선형식으로 표현할 수 있게 되는 것.
+feature space.
+그리고 이게 중요한 이유는:
+비선형 feature를 추가하면 원래 선형 분리 불가능했던 문제를 새로운 공간에서는 선형적으로 표현할 수 있다.
+
+# [4-2강] ReLU의 역할과 사용 위치 - 실습 (학생용)
+
+## 필수 1: ReLU 값 비교
+
+**문제 설명**
+음수, 0, 양수 입력에 ReLU를 적용합니다.
+
+relu_values = torch.relu(values)
+
+before: [-2.0, -0.5, 0.0, 1.0, 3.0]
+after: [0.0, 0.0, 0.0, 1.0, 3.0]
+
+## 필수 2: MLP에 ReLU 추가
+
+**문제 설명**
+은닉층 Linear 뒤에 ReLU를 연결합니다.
+
+model = nn.Sequential(
+    nn.Linear(4, 8),
+    nn.ReLU(), # TODO: 여기에 ReLU를 추가해보세요.
+    nn.Linear(8, 3)
+)
+
+## 심화 1: dead ReLU 직관 확인
+
+**문제 설명**
+음수 입력이 0으로 잘리는 현상을 확인합니다.
+
+# 심화 1. dead ReLU 직관 확인하기
+negative_input = torch.tensor([-5.0, -1.0, 0.5])
+print('ReLU output:', torch.relu(negative_input).tolist())
+print('음수 입력은 0으로 잘리므로 일부 뉴런이 계속 0만 출력할 수 있습니다.')
+
+ReLU output: [0.0, 0.0, 0.5]
+음수 입력은 0으로 잘리므로 일부 뉴런이 계속 0만 출력할 수 있습니다.
+
+
+# [4-3강] Sigmoid와 이진 분류 출력층 - 실습 (학생용)
+
+## 필수 1: Sigmoid 확률 변환
+
+**문제 설명**
+binary logits를 0~1 확률로 변환합니다.
+
+# 필수 1. logits를 Sigmoid 확률로 바꾸기
+logits = torch.tensor([-2.0, 0.0, 2.0])
+# TODO: sigmoid를 적용해보세요.
+probs = torch.sigmoid(logits)
+print('logits:', logits.tolist())
+print('probs:', probs.tolist())
+
+logits: [-2.0, 0.0, 2.0]
+probs: [0.11920291930437088, 0.5, 0.8807970285415649]
+
+## 필수 2: threshold 기반 예측
+
+**문제 설명**
+확률 0.5 기준으로 이진 label을 만듭니다.
+
+probs: [0.23100000619888306, 0.5989999771118164, 0.890999972820282, 0.3319999873638153]
+pred_label: [0, 0, 0, 0]
+preds: tensor([0, 1, 1, 0])
+
+
+## 심화 1: BCEWithLogitsLoss 연결
+
+**문제 설명**
+Sigmoid 전 logits와 float target으로 loss를 계산합니다.
+
+loss_fn = nn.BCEWithLogitsLoss()
+if loss_fn is None:
+    print('TODO: nn.BCEWithLogitsLoss()를 사용해보세요.')
+else:
+    print(loss_fn(logits, target).item())
+
+0.3709379732608795
+
+# [4-4강] Softmax와 다중 분류 출력층 - 실습 (학생용)
+
+## 필수 1: Softmax 확률 변환
+
+**문제 설명**
+다중 분류 logits를 class 확률 분포로 변환합니다.
+probs = torch.softmax(logits, dim=1)
+
+probs: tensor([[0.6590, 0.2424, 0.0986]])
+sum: tensor(1.0000)
+
+## 필수 2: argmax 예측
+
+**문제 설명**
+logits에서 가장 큰 class index를 예측합니다.
+
+# 필수 2. argmax로 예측 class 만들기
+logits = torch.tensor([[0.1, 2.5, 0.3], [3.0, 1.0, 0.2]])
+# TODO: 각 sample의 예측 class index를 구하세요.
+pred = torch.zeros(2, dtype=torch.long)
+pred = torch.argmax(logits, dim=1) 
+print('pred:', pred.tolist())
+
+pred: [1, 0]
+
+## 심화 1: CrossEntropyLoss 연결
+
+**문제 설명**
+raw logits와 class index target으로 loss를 계산합니다.
+
+# 심화 1. CrossEntropyLoss는 raw logits와 class index target을 받습니다.
+logits = torch.randn(4, 3)
+target = torch.tensor([0, 2, 1, 1])
+# TODO: loss를 계산해보세요.
+loss_fn = nn.CrossEntropyLoss()
+if loss_fn is None:
+    print('TODO: nn.CrossEntropyLoss()를 사용해보세요.')
+else:
+    print(loss_fn(logits, target).item())
+
+1.5617684125900269
